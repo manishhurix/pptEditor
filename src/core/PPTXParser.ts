@@ -538,11 +538,29 @@ export class PPTXParser {
 
         // Parse shape properties
         if (spPr['a:prstGeom']) {
+            // Parse background color
             const solidFill = spPr['a:solidFill']?.[0];
             if (solidFill) {
                 const srgbClr = solidFill['a:srgbClr']?.[0]?.$.val;
                 if (srgbClr) {
                     style.backgroundColor = `#${srgbClr}`;
+                }
+            }
+
+            // Parse border properties
+            const ln = spPr['a:ln']?.[0];
+            if (ln) {
+                const solidFill = ln['a:solidFill']?.[0];
+                if (solidFill) {
+                    const srgbClr = solidFill['a:srgbClr']?.[0]?.$.val;
+                    if (srgbClr) {
+                        style.borderColor = `#${srgbClr}`;
+                    }
+                }
+
+                const w = ln['a:w']?.[0]?.$?.val;
+                if (w) {
+                    style.borderWidth = parseInt(w) / 12700; // Convert EMU to points
                 }
             }
         }
@@ -552,22 +570,143 @@ export class PPTXParser {
             const paragraphs = txBody['a:p'] || [];
             if (paragraphs.length > 0) {
                 const firstP = paragraphs[0];
-                const runs = firstP['a:r'] || [];
-                if (runs.length > 0) {
-                    const firstRun = runs[0];
-                    const rPr = firstRun['a:rPr']?.[0];
 
-                    if (rPr) {
-                        const sz = rPr['a:sz']?.[0]?.$?.val;
+                // Parse paragraph-level properties first (these can be inherited by runs)
+                const pPr = firstP['a:pPr']?.[0];
+                if (pPr) {
+                    // Parse paragraph alignment
+                    const algn = pPr['a:algn']?.[0]?.$?.val;
+                    if (algn) {
+                        // Convert PowerPoint alignment to our format
+                        switch (algn) {
+                            case 'l': style.alignment = 'left'; break;
+                            case 'ctr': style.alignment = 'center'; break;
+                            case 'r': style.alignment = 'right'; break;
+                            default: style.alignment = 'left';
+                        }
+                    }
+
+                    // Parse paragraph-level text properties
+                    const defRPr = pPr['a:defRPr']?.[0];
+                    if (defRPr) {
+                        // Parse default font size
+                        const sz = defRPr['a:sz']?.[0]?.$?.val;
                         if (sz) {
                             style.fontSize = parseInt(sz) / 100; // Convert to points
                         }
 
-                        const solidFill = rPr['a:solidFill']?.[0];
+                        // Parse default font family
+                        const latin = defRPr['a:latin']?.[0]?.$?.typeface;
+                        if (latin) {
+                            style.fontFamily = latin;
+                        }
+
+                        // Parse default font weight
+                        const b = defRPr['a:b']?.[0];
+                        if (b) {
+                            style.fontWeight = 'bold';
+                        }
+
+                        // Parse default text color
+                        const solidFill = defRPr['a:solidFill']?.[0];
                         if (solidFill) {
+                            // Try different color formats
                             const srgbClr = solidFill['a:srgbClr']?.[0]?.$.val;
                             if (srgbClr) {
                                 style.color = `#${srgbClr}`;
+                            } else {
+                                // Check for theme colors
+                                const schemeClr = solidFill['a:schemeClr']?.[0]?.$.val;
+                                if (schemeClr) {
+                                    // Map theme colors to actual colors
+                                    const themeColor = this.getThemeColor(schemeClr);
+                                    if (themeColor) {
+                                        style.color = themeColor;
+                                    }
+                                } else {
+                                    // Check for HSL colors
+                                    const hslClr = solidFill['a:hslClr']?.[0]?.$;
+                                    if (hslClr) {
+                                        const hue = parseInt(hslClr.hue || '0');
+                                        const sat = parseInt(hslClr.sat || '0') / 100000;
+                                        const lum = parseInt(hslClr.lum || '0') / 100000;
+                                        // Convert HSL to hex (simplified conversion)
+                                        const hexColor = this.hslToHex(hue, sat, lum);
+                                        if (hexColor) {
+                                            style.color = hexColor;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Parse run-level properties (these override paragraph defaults)
+                const runs = firstP['a:r'] || [];
+                if (runs.length > 0) {
+                    // Look for the first run with actual text content
+                    let firstRunWithText = null;
+                    for (const run of runs) {
+                        if (run['a:t'] && run['a:t'][0] && run['a:t'][0].trim()) {
+                            firstRunWithText = run;
+                            break;
+                        }
+                    }
+
+                    if (firstRunWithText) {
+                        const rPr = firstRunWithText['a:rPr']?.[0];
+
+                        if (rPr) {
+                            // Parse font size (run level overrides paragraph level)
+                            const sz = rPr['a:sz']?.[0]?.$?.val;
+                            if (sz) {
+                                style.fontSize = parseInt(sz) / 100; // Convert to points
+                            }
+
+                            // Parse font family (run level overrides paragraph level)
+                            const latin = rPr['a:latin']?.[0]?.$?.typeface;
+                            if (latin) {
+                                style.fontFamily = latin;
+                            }
+
+                            // Parse font weight (run level overrides paragraph level)
+                            const b = rPr['a:b']?.[0];
+                            if (b) {
+                                style.fontWeight = 'bold';
+                            }
+
+                            // Parse text color (run level overrides paragraph defaults)
+                            const solidFill = rPr['a:solidFill']?.[0];
+                            if (solidFill) {
+                                // Try different color formats
+                                const srgbClr = solidFill['a:srgbClr']?.[0]?.$.val;
+                                if (srgbClr) {
+                                    style.color = `#${srgbClr}`;
+                                } else {
+                                    // Check for theme colors
+                                    const schemeClr = solidFill['a:schemeClr']?.[0]?.$.val;
+                                    if (schemeClr) {
+                                        // Map theme colors to actual colors
+                                        const themeColor = this.getThemeColor(schemeClr);
+                                        if (themeColor) {
+                                            style.color = themeColor;
+                                        }
+                                    } else {
+                                        // Check for HSL colors
+                                        const hslClr = solidFill['a:hslClr']?.[0]?.$;
+                                        if (hslClr) {
+                                            const hue = parseInt(hslClr.hue || '0');
+                                            const sat = parseInt(hslClr.sat || '0') / 100000;
+                                            const lum = parseInt(hslClr.lum || '0') / 100000;
+                                            // Convert HSL to hex (simplified conversion)
+                                            const hexColor = this.hslToHex(hue, sat, lum);
+                                            if (hexColor) {
+                                                style.color = hexColor;
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -575,7 +714,68 @@ export class PPTXParser {
             }
         }
 
+        // Debug: Log the parsed style for troubleshooting
+        if (Object.keys(style).length > 0) {
+            console.log('PPTXParser: Parsed element style:', style);
+        }
+
         return style;
+    }
+
+    private getThemeColor(schemeColor: string): string | null {
+        // Map PowerPoint theme color names to actual colors
+        const themeColorMap: { [key: string]: string } = {
+            'tx1': '#000000', // Primary text color
+            'tx2': '#1F4E79', // Secondary text color
+            'bg1': '#FFFFFF', // Primary background color
+            'bg2': '#F2F2F2', // Secondary background color
+            'accent1': '#4472C4', // Accent color 1
+            'accent2': '#ED7D31', // Accent color 2
+            'accent3': '#A5A5A5', // Accent color 3
+            'accent4': '#FFC000', // Accent color 4
+            'accent5': '#5B9BD5', // Accent color 5
+            'accent6': '#70AD47', // Accent color 6
+            'hlink': '#0563C1', // Hyperlink color
+            'folHlink': '#954F72' // Followed hyperlink color
+        };
+
+        return themeColorMap[schemeColor] || null;
+    }
+
+    private hslToHex(h: number, s: number, l: number): string | null {
+        try {
+            // Convert HSL to RGB then to Hex
+            s /= 100;
+            l /= 100;
+
+            const c = (1 - Math.abs(2 * l - 1)) * s;
+            const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+            const m = l - c / 2;
+            let r = 0, g = 0, b = 0;
+
+            if (0 <= h && h < 60) {
+                r = c; g = x; b = 0;
+            } else if (60 <= h && h < 120) {
+                r = x; g = c; b = 0;
+            } else if (120 <= h && h < 180) {
+                r = 0; g = c; b = x;
+            } else if (180 <= h && h < 240) {
+                r = 0; g = x; b = c;
+            } else if (240 <= h && h < 300) {
+                r = x; g = 0; b = c;
+            } else if (300 <= h && h < 360) {
+                r = c; g = 0; b = x;
+            }
+
+            const rHex = Math.round((r + m) * 255).toString(16).padStart(2, '0');
+            const gHex = Math.round((g + m) * 255).toString(16).padStart(2, '0');
+            const bHex = Math.round((b + m) * 255).toString(16).padStart(2, '0');
+
+            return `#${rHex}${gHex}${bHex}`;
+        } catch (error) {
+            console.warn('PPTXParser: Error converting HSL to hex:', error);
+            return null;
+        }
     }
 
     private async parseTheme(): Promise<void> {

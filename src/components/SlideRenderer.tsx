@@ -177,7 +177,7 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
         console.log(`SlideRenderer: Original coords: (${element.position.x}, ${element.position.y}) size ${element.size.width}x${element.size.height}`);
         console.log(`SlideRenderer: Scale: ${scale}, POINTS_TO_PIXELS: ${96 / 72}`);
 
-        // Set styles
+        // Set styles for selection and hover (only when needed)
         if (isSelected) {
             ctx.strokeStyle = '#007bff';
             ctx.lineWidth = 2;
@@ -187,12 +187,8 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
             ctx.strokeStyle = 'rgba(0, 123, 255, 0.3)';
             ctx.lineWidth = 2;
             ctx.setLineDash([]);
-        } else {
-            // Add a subtle border to all elements to show they're clickable
-            ctx.strokeStyle = 'rgba(0, 123, 255, 0.1)';
-            ctx.lineWidth = 1;
-            ctx.setLineDash([]);
         }
+        // No default borders on all elements - let the actual PPTX styling show through
 
         switch (element.type) {
             case 'text':
@@ -223,32 +219,63 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
         const text = element.content.text || '';
         const style = element.style || {};
 
-        // Ensure text is visible - use black if no color specified
+        // Use actual text color from PPTX, fallback to black only if absolutely necessary
         const textColor = style.color || '#000000';
         ctx.fillStyle = textColor;
 
-        // Set font size to be more readable
-        const fontSize = Math.max(style.fontSize || 14, 12);
-        ctx.font = `${style.fontWeight || 'normal'} ${fontSize}px ${style.fontFamily || 'Arial'}`;
+        // Debug: Log the color being used
+        console.log(`SlideRenderer: Text color for "${text}":`, {
+            originalColor: style.color,
+            appliedColor: textColor,
+            fallbackUsed: !style.color
+        });
 
-        // Center text within the shape by default
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        // Use actual font properties from PPTX
+        const fontSize = style.fontSize || 14;
+        const fontFamily = style.fontFamily || 'Arial';
+        const fontWeight = style.fontWeight || 'normal';
+        ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
 
-        console.log(`SlideRenderer: Rendering text "${text}" with color ${textColor} at (${x}, ${y})`);
+        // Use actual text alignment from PPTX instead of hardcoded center
+        const alignment = style.alignment || 'left';
+        ctx.textAlign = alignment;
+        ctx.textBaseline = 'top'; // Use top baseline for more accurate positioning
 
-        // Calculate center position of the shape
-        const centerX = x + width / 2;
-        const centerY = y + height / 2;
+        console.log(`SlideRenderer: Rendering text "${text}" with color ${textColor}, alignment ${alignment}, font ${fontWeight} ${fontSize}px ${fontFamily} at (${x}, ${y})`);
+
+        // Calculate text position based on alignment
+        let textX: number;
+        let textY: number;
+
+        switch (alignment) {
+            case 'left':
+                textX = x + 5; // Small left margin
+                break;
+            case 'center':
+                textX = x + width / 2;
+                break;
+            case 'right':
+                textX = x + width - 5; // Small right margin
+                break;
+            default:
+                textX = x + 5;
+        }
+
+        // Start text from top with small top margin
+        textY = y + 5;
 
         // Handle text wrapping for multi-line text
         const lines = text.split('\n');
         const lineHeight = fontSize * 1.2;
-        const totalHeight = lines.length * lineHeight;
-        const startY = centerY - totalHeight / 2 + lineHeight / 2;
+
+        // Calculate total text height and center vertically if there's space
+        const totalTextHeight = lines.length * lineHeight;
+        if (totalTextHeight < height - 10) { // If text is shorter than container
+            textY = y + (height - totalTextHeight) / 2; // Center vertically
+        }
 
         lines.forEach((line: string, index: number) => {
-            const lineY = startY + index * lineHeight;
+            const lineY = textY + index * lineHeight;
 
             // Handle long lines by wrapping
             if (ctx.measureText(line).width > width * 0.9) {
@@ -260,7 +287,7 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
                 words.forEach((word: string) => {
                     const testLine = currentLine + word + ' ';
                     if (ctx.measureText(testLine).width > width * 0.9 && currentLine) {
-                        ctx.fillText(currentLine.trim(), centerX, currentY);
+                        ctx.fillText(currentLine.trim(), textX, currentY);
                         currentLine = word + ' ';
                         currentY += lineHeight;
                     } else {
@@ -269,10 +296,10 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
                 });
 
                 if (currentLine.trim()) {
-                    ctx.fillText(currentLine.trim(), centerX, currentY);
+                    ctx.fillText(currentLine.trim(), textX, currentY);
                 }
             } else {
-                ctx.fillText(line, centerX, lineY);
+                ctx.fillText(line, textX, lineY);
             }
         });
     };
@@ -329,15 +356,15 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
         height: number,
         label: string
     ) => {
-        // Draw placeholder rectangle
-        ctx.fillStyle = '#f0f0f0';
+        // Draw placeholder rectangle with minimal styling
+        ctx.fillStyle = 'rgba(200, 200, 200, 0.2)';
         ctx.fillRect(x, y, width, height);
-        ctx.strokeStyle = '#cccccc';
+        ctx.strokeStyle = 'rgba(150, 150, 150, 0.5)';
         ctx.lineWidth = 1;
         ctx.strokeRect(x, y, width, height);
 
-        // Add placeholder text
-        ctx.fillStyle = '#666666';
+        // Add placeholder text with neutral color
+        ctx.fillStyle = 'rgba(100, 100, 100, 0.8)';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -357,21 +384,20 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
         console.log('SlideRenderer: Shape style:', style);
         console.log('SlideRenderer: Shape content:', element.content);
 
-        // Always render the shape background (even if transparent)
-        // This ensures the shape container is visible
+        // Only render background if it has a color from PPTX
         if (style.backgroundColor) {
             ctx.fillStyle = style.backgroundColor;
             ctx.fillRect(x, y, width, height);
-        } else {
-            // If no background color, use a very light fill to make the shape visible
-            ctx.fillStyle = 'rgba(240, 240, 240, 0.3)';
-            ctx.fillRect(x, y, width, height);
         }
+        // No hardcoded fallback colors - let it be transparent if no color specified
 
-        // Always add a border to make shapes visible
-        ctx.strokeStyle = style.borderColor || '#cccccc';
-        ctx.lineWidth = style.borderWidth || 1;
-        ctx.strokeRect(x, y, width, height);
+        // Only render border if it has properties from PPTX
+        if (style.borderColor && style.borderWidth) {
+            ctx.strokeStyle = style.borderColor;
+            ctx.lineWidth = style.borderWidth;
+            ctx.strokeRect(x, y, width, height);
+        }
+        // No hardcoded fallback borders
 
         // Text content - render text INSIDE the shape
         if (element.content.text && element.content.text.trim()) {
