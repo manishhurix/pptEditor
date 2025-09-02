@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPTX Editor SDK Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: #f5f5f5;
+        }
+
+        .app {
+            min-height: 100vh;
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .app-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .app-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .file-upload {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .drop-zone {
+            border: 3px dashed #ddd;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            background: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .drop-zone:hover {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .upload-content h3 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-content p {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            display: inline-block;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .upload-button:hover {
+            transform: translateY(-2px);
+        }
+
+        .features {
+            margin-top: 2rem;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .features h3 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .features ul {
+            list-style: none;
+        }
+
+        .features li {
+            padding: 0.5rem 0;
+            color: #555;
+            border-bottom: 1px solid #eee;
+        }
+
+        .features li:last-child {
+            border-bottom: none;
+        }
+
+        .editor-container {
+            margin: 2rem;
+        }
+
+        .file-info {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .close-button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .close-button:hover {
+            background: #c82333;
+        }
+
+        .export-notification {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #28a745;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .export-notification button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .export-notification button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* PPTX Editor Styles */
+        .pptx-editor {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .editor-toolbar {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .toolbar-left,
+        .toolbar-center,
+        .toolbar-right {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .editor-toolbar button {
+            background: white;
+            border: 1px solid #dee2e6;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .editor-toolbar button:hover:not(:disabled) {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .editor-toolbar button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .export-btn {
+            background: #28a745 !important;
+            color: white !important;
+            border-color: #28a745 !important;
+        }
+
+        .export-btn:hover {
+            background: #218838 !important;
+            border-color: #1e7e34 !important;
+        }
+
+        .editor-main {
+            display: grid;
+            grid-template-columns: 180px 1fr 220px;
+            gap: 1rem;
+            padding: 1rem;
+            min-height: 600px;
+        }
+
+        .slide-navigator {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .slide-navigator h4 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .slide-thumbnails {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .slide-thumbnail {
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 4px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slide-thumbnail:hover {
+            border-color: #667eea;
+        }
+
+        .slide-thumbnail.active {
+            border-color: #667eea;
+            background: #e7f3ff;
+        }
+
+        .slide-editor {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .properties-panel {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .properties-panel h4 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .element-properties {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .property-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .property-group label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .property-inputs {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .property-inputs input {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        .property-group input,
+        .property-group select {
+            padding: 6px 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        .z-index-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .z-index-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background-color 0.2s;
+        }
+
+        .z-index-btn:hover {
+            background: #0056b3;
+        }
+
+        .z-index-btn:active {
+            background: #004085;
+        }
+
+        .z-index-info {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+            padding: 4px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+
+        .element-info {
+            font-size: 0.8rem;
+            color: #555;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+        }
+
+        .element-info div {
+            margin-bottom: 4px;
+        }
+
+        .element-info div:last-child {
+            margin-bottom: 0;
+        }
+
+        .editor-status {
+            background: #f8f9fa;
+            padding: 0.75rem 1rem;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .pptx-editor-loading,
+        .pptx-editor-error,
+        .pptx-editor-empty {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .pptx-editor-error h3 {
+            color: #dc3545;
+            margin-bottom: 1rem;
+        }
+
+        .pptx-editor-error button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+
+        .pptx-editor-empty h3 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        /* Slide Renderer Styles */
+        .slide-renderer {
+            position: relative;
+        }
+
+        .text-editor {
+            position: absolute;
+            z-index: 1000;
+        }
+
+        .text-editor textarea {
+            border: 2px solid #007bff;
+            padding: 4px;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .text-editor-controls {
+            margin-top: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .text-editor-controls button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .text-editor-controls button:last-child {
+            background: #6c757d;
+        }
+
+        @media (max-width: 1200px) {
+            .editor-main {
+                grid-template-columns: 150px 1fr 200px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .editor-main {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+            }
+
+            .slide-navigator {
+                order: 1;
+            }
+
+            .slide-editor {
+                order: 2;
+            }
+
+            .properties-panel {
+                order: 3;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+</body>
+
+</html>

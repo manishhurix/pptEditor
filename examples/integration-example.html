@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPTX Editor SDK - Integration Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .upload-section {
+            text-align: center;
+            padding: 40px;
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .upload-section:hover {
+            border-color: #007bff;
+            background-color: #f8f9ff;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .upload-button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+
+        .upload-button:hover {
+            background: #0056b3;
+        }
+
+        .editor-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .toolbar {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .toolbar button {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .toolbar button:hover {
+            background: #e9ecef;
+        }
+
+        .toolbar button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .slide-info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .slide-canvas {
+            border: 1px solid #ddd;
+            margin: 0 auto;
+            display: block;
+            background: white;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            background: #d4edda;
+            border-radius: 5px;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>PPTX Editor SDK - Integration Example</h1>
+
+        <div class="upload-section" id="uploadSection">
+            <h3>Upload PPTX File</h3>
+            <p>Select a PowerPoint presentation to start editing</p>
+            <input type="file" id="fileInput" class="file-input" accept=".pptx">
+            <button class="upload-button" onclick="document.getElementById('fileInput').click()">
+                Choose File
+            </button>
+        </div>
+
+        <div class="editor-container" id="editorContainer">
+            <div class="toolbar">
+                <button id="undoBtn" onclick="undo()" disabled>Undo</button>
+                <button id="redoBtn" onclick="redo()" disabled>Redo</button>
+                <button onclick="revertAll()">Revert All</button>
+                <button onclick="addText()">Add Text</button>
+                <button onclick="addImage()">Add Image</button>
+                <button onclick="exportPPTX()" style="background: #28a745; color: white;">Export PPTX</button>
+            </div>
+
+            <div class="slide-info" id="slideInfo">
+                Slide 1 of 1
+            </div>
+
+            <canvas id="slideCanvas" class="slide-canvas" width="800" height="450"></canvas>
+
+            <div class="status" id="status" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the SDK (this would be from the built package in real usage)
+        // import { PPTXEditor } from 'pptx-editor-sdk';
+
+        // For demo purposes, we'll simulate the SDK functionality
+        class MockPPTXEditor {
+            constructor(options = {}) {
+                this.options = options;
+                this.document = null;
+                this.currentSlide = 0;
+                this.changes = [];
+                this.canUndo = false;
+                this.canRedo = false;
+            }
+
+            async loadPPTX(file) {
+                // Simulate loading
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                this.document = {
+                    slides: [
+                        {
+                            id: 'slide-1',
+                            slideNumber: 1,
+                            elements: [
+                                {
+                                    id: 'text-1',
+                                    type: 'text',
+                                    position: { x: 100, y: 100 },
+                                    size: { width: 300, height: 50 },
+                                    content: { text: 'Sample Text' },
+                                    style: { fontSize: 24, color: '#000000' }
+                                }
+                            ]
+                        }
+                    ],
+                    metadata: {
+                        title: file.name,
+                        author: 'Demo User',
+                        subject: 'Demo Presentation',
+                        keywords: [],
+                        created: new Date(),
+                        modified: new Date()
+                    }
+                };
+
+                return this.document;
+            }
+
+            getCurrentSlide() {
+                return this.document?.slides[this.currentSlide] || null;
+            }
+
+            getState() {
+                return {
+                    currentSlide: this.currentSlide,
+                    changes: this.changes,
+                    canUndo: this.canUndo,
+                    canRedo: this.canRedo
+                };
+            }
+
+            undo() {
+                if (this.canUndo) {
+                    this.changes.pop();
+                    this.canUndo = this.changes.length > 0;
+                    this.canRedo = true;
+                    return true;
+                }
+                return false;
+            }
+
+            redo() {
+                if (this.canRedo) {
+                    this.changes.push({ type: 'redo' });
+                    this.canRedo = false;
+                    this.canUndo = true;
+                    return true;
+                }
+                return false;
+            }
+
+            revertAllChanges() {
+                this.changes = [];
+                this.canUndo = false;
+                this.canRedo = false;
+            }
+
+            updateText(elementId, newText) {
+                const slide = this.getCurrentSlide();
+                if (slide) {
+                    const element = slide.elements.find(e => e.id === elementId);
+                    if (element && element.type === 'text') {
+                        element.content.text = newText;
+                        this.changes.push({ type: 'update', elementId, description: `Updated text: "${newText}"` });
+                        this.canUndo = true;
+                        this.canRedo = false;
+                    }
+                }
+            }
+
+            addTextElement(text, x, y, width, height) {
+                const slide = this.getCurrentSlide();
+                if (slide) {
+                    const elementId = `text-${Date.now()}`;
+                    const newElement = {
+                        id: elementId,
+                        type: 'text',
+                        position: { x, y },
+                        size: { width, height },
+                        content: { text },
+                        style: { fontSize: 16, color: '#000000' }
+                    };
+
+                    slide.elements.push(newElement);
+                    this.changes.push({ type: 'add', elementId, description: `Added text: "${text}"` });
+                    this.canUndo = true;
+                    this.canRedo = false;
+
+                    return elementId;
+                }
+            }
+
+            async exportPPTX() {
+                // Simulate export
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Create a mock PPTX blob
+                const content = 'Mock PPTX content';
+                return new Blob([content], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+            }
+        }
+
+        // Global variables
+        let editor = null;
+        let currentDocument = null;
+        let selectedElement = null;
+
+        // File input handler
+        document.getElementById('fileInput').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                await loadPPTX(file);
+            }
+        });
+
+        // Load PPTX file
+        async function loadPPTX(file) {
+            try {
+                showStatus('Loading presentation...', 'loading');
+
+                editor = new MockPPTXEditor({
+                    enableUndoRedo: true,
+                    enableAutoSave: true,
+                    maxUndoSteps: 50
+                });
+
+                currentDocument = await editor.loadPPTX(file);
+
+                document.getElementById('uploadSection').style.display = 'none';
+                document.getElementById('editorContainer').style.display = 'block';
+
+                renderSlide();
+                updateToolbar();
+                updateSlideInfo();
+
+                showStatus('Presentation loaded successfully!', 'success');
+
+                setTimeout(() => {
+                    hideStatus();
+                }, 3000);
+
+            } catch (error) {
+                showStatus(`Error loading presentation: ${error.message}`, 'error');
+            }
+        }
+
+        // Render the current slide
+        function renderSlide() {
+            const canvas = document.getElementById('slideCanvas');
+            const ctx = canvas.getContext('2d');
+            const slide = editor.getCurrentSlide();
+
+            if (!slide) return;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw elements
+            slide.elements.forEach(element => {
+                if (element.type === 'text') {
+                    renderTextElement(ctx, element);
+                }
+            });
+        }
+
+        // Render text element
+        function renderTextElement(ctx, element) {
+            ctx.fillStyle = element.style.color || '#000000';
+            ctx.font = `${element.style.fontSize || 16}px Arial`;
+            ctx.fillText(element.content.text, element.position.x, element.position.y + element.style.fontSize);
+
+            // Draw selection border if selected
+            if (selectedElement === element.id) {
+                ctx.strokeStyle = '#007bff';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(element.position.x, element.position.y, element.size.width, element.size.height);
+                ctx.setLineDash([]);
+            }
+        }
+
+        // Update toolbar state
+        function updateToolbar() {
+            const state = editor.getState();
+            document.getElementById('undoBtn').disabled = !state.canUndo;
+            document.getElementById('redoBtn').disabled = !state.canRedo;
+        }
+
+        // Update slide information
+        function updateSlideInfo() {
+            const slide = editor.getCurrentSlide();
+            if (slide) {
+                document.getElementById('slideInfo').textContent =
+                    `Slide ${slide.slideNumber} of ${currentDocument.slides.length}`;
+            }
+        }
+
+        // Undo function
+        function undo() {
+            if (editor.undo()) {
+                renderSlide();
+                updateToolbar();
+                showStatus('Undone last change', 'success');
+                setTimeout(() => hideStatus(), 2000);
+            }
+        }
+
+        // Redo function
+        function redo() {
+            if (editor.redo()) {
+                renderSlide();
+                updateToolbar();
+                showStatus('Redone last change', 'success');
+                setTimeout(() => hideStatus(), 2000);
+            }
+        }
+
+        // Revert all changes
+        function revertAllChanges() {
+            editor.revertAllChanges();
+            renderSlide();
+            updateToolbar();
+            showStatus('All changes reverted', 'success');
+            setTimeout(() => hideStatus(), 2000);
+        }
+
+        // Add text element
+        function addText() {
+            const elementId = editor.addTextElement('New Text', 200, 200, 200, 50);
+            if (elementId) {
+                selectedElement = elementId;
+                renderSlide();
+                updateToolbar();
+                showStatus('Text element added', 'success');
+                setTimeout(() => hideStatus(), 2000);
+            }
+        }
+
+        // Add image element
+        function addImage() {
+            showStatus('Image functionality not implemented in demo', 'error');
+            setTimeout(() => hideStatus(), 3000);
+        }
+
+        // Export PPTX
+        async function exportPPTX() {
+            try {
+                showStatus('Exporting presentation...', 'loading');
+
+                const blob = await editor.exportPPTX();
+
+                // Create download link
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `edited-presentation-${Date.now()}.pptx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showStatus('Presentation exported successfully!', 'success');
+                setTimeout(() => hideStatus(), 3000);
+
+            } catch (error) {
+                showStatus(`Export failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+
+            if (type === 'loading') {
+                status.innerHTML = `<div class="spinner"></div>${message}`;
+            }
+        }
+
+        // Hide status message
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+
+        // Canvas click handler for element selection
+        document.getElementById('slideCanvas').addEventListener('click', (event) => {
+            const canvas = event.target;
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            const slide = editor.getCurrentSlide();
+            if (slide) {
+                // Find clicked element
+                const clickedElement = slide.elements.find(element => {
+                    return (
+                        x >= element.position.x &&
+                        x <= element.position.x + element.size.width &&
+                        y >= element.position.y &&
+                        y <= element.position.y + element.size.height
+                    );
+                });
+
+                selectedElement = clickedElement ? clickedElement.id : null;
+                renderSlide();
+            }
+        });
+
+        // Double-click to edit text
+        document.getElementById('slideCanvas').addEventListener('dblclick', (event) => {
+            if (selectedElement) {
+                const slide = editor.getCurrentSlide();
+                if (slide) {
+                    const element = slide.elements.find(e => e.id === selectedElement);
+                    if (element && element.type === 'text') {
+                        const newText = prompt('Enter new text:', element.content.text);
+                        if (newText !== null) {
+                            editor.updateText(selectedElement, newText);
+                            renderSlide();
+                            updateToolbar();
+                            showStatus('Text updated', 'success');
+                            setTimeout(() => hideStatus(), 2000);
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
